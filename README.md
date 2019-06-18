@@ -1,2 +1,1 @@
-# qualisys_lsl_app
-Lab Streaming Layer
+# Qualisys Lab Streaming Layer App
