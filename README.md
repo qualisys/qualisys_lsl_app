@@ -30,6 +30,6 @@ python gui.py
 3. Enter address, port, and start
 > ![qtm_lsl_init.PNG](images/qtm_lsl_init.PNG)
 
-Once started, the app is either in a waiting or streaming state. Waiting means QTM is not yet streaming data and so there is no LSL stream open. Once QTM starts streaming, the LSL stream is opened.
+Once started, the app is either in a waiting or streaming state. Waiting means that QTM is not streaming data and so there is no LSL stream open. Once QTM starts streaming, the LSL stream is opened. Similarly, the LSL stream is closed once QTM stops streaming.
 > ![qtm_lsl_wait.PNG](images/qtm_lsl_wait.PNG)
 ![qtm_lsl_stream.PNG](images/qtm_lsl_stream.PNG)
