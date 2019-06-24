@@ -27,6 +27,13 @@ def xml_parse_parameters_general(xml_general):
             tag = xml_camera_param.tag.lower()
             if tag in ["id", "model", "serial", "mode", "video_frequency"]:
                 camera[tag] = xml_camera_param.text
+            elif tag == "position":
+                position = {}
+                for xml_camera_pos_param in xml_camera_param:
+                    tag = xml_camera_pos_param.tag.lower()
+                    if tag in ["x", "y", "z"]:
+                        position[tag] = float(xml_camera_pos_param.text)
+                camera["position"] = position
         cameras.append(camera)
     frequency = xml_general.findtext("./Frequency")
     return {
@@ -59,7 +66,7 @@ def xml_parse_parameters_6d(xml_6d):
                 for xml_point_param in xml_body_param:
                     tag = xml_point_param.tag.lower()
                     if tag in ["x", "y", "z"]:
-                        point[tag] = xml_point_param.text
+                        point[tag] = float(xml_point_param.text)
                 body["points"].append(point)
         bodies.append(body)
     xml_euler = xml_6d.find("./Euler")
@@ -111,13 +118,18 @@ class QTMParameters:
     
     def body_count(self):
         return len(self.bodies())
+    
+    def cameras(self):
+        try:
+            return self.general["cameras"]
+        except KeyError:
+            return []
 
 class State(Enum):
     INITIAL = 1
     WAITING = 2
     STREAMING = 3
-    STOPPING = 4
-    STOPPED = 5
+    STOPPED = 4
 
 class Link:
     def __init__(self, host, port, on_state_changed, on_error):
@@ -166,7 +178,7 @@ class Link:
         
     def on_disconnect(self, exc):
         if self.is_stopped(): return
-        if self.state != State.STOPPING:
+        if self.conn:
             self.err_disconnect("Disconnected from QTM")
         if exc:
             LOG.debug("on_disconnect: {}".format(exc))
@@ -219,6 +231,20 @@ class Link:
             append_orientation_channel(name, angles["first"])
             append_orientation_channel(name, angles["second"])
             append_orientation_channel(name, angles["third"])
+    
+    def lsl_stream_info_add_cameras(self, cameras):
+        def scale_pos(pos):
+            # Convert from mm to m
+            return str(round(pos/1000, 6))
+        for camera in self.params.cameras():
+            info = cameras.append_child("cameras") \
+                .append_child_value("label", camera["id"])
+            if "position" in camera:
+                pos = camera["position"]
+                info.append_child("position") \
+                    .append_child_value("X", scale_pos(pos["x"])) \
+                    .append_child_value("Y", scale_pos(pos["y"])) \
+                    .append_child_value("Z", scale_pos(pos["z"]))
 
     def lsl_new_stream_info(self):
         info = StreamInfo(
@@ -232,9 +258,12 @@ class Link:
         setup = info.desc().append_child("setup")
         markers = setup.append_child("markers")
         objects = setup.append_child("objects")
-        # Note: order of function calls is important as they append to channels
+        cameras = setup.append_child("cameras")
+        # Note: 
+        # do not change the order of functions that take channels as an argument
         self.lsl_stream_info_add_markers(channels, markers)
         self.lsl_stream_info_add_6dof(channels, objects)
+        self.lsl_stream_info_add_cameras(cameras)
         info.desc().append_child("acquisition") \
             .append_child_value("model", "Qualisys")
         return info
@@ -261,7 +290,8 @@ class Link:
                 sample.append(rotation.a2)
                 sample.append(rotation.a3)
         if len(sample) != self.lsl_channel_count():
-            self.err_disconnect("Stream aborted: QTM stream data inconsistent with LSL metadata")
+            self.err_disconnect("Stream canceled: \
+                QTM stream data inconsistent with LSL metadata")
             return []
         return sample
     
@@ -272,12 +302,11 @@ class Link:
         try:
             LOG.debug("shutdown enter")
             if not self.is_stopped():
-                prev_state = self.set_state(State.STOPPING)
-                if prev_state == State.STREAMING:
+                if self.state == State.STREAMING:
                     await self.stop_stream()
                 if self.conn and self.conn.has_transport():
                     self.conn.disconnect()
-                self.conn = None
+            self.conn = None
         finally:
             self.set_state(State.STOPPED)
             if err_msg:
@@ -288,15 +317,15 @@ class Link:
         try:
             await self.conn.get_state()
         except qtm.QRTCommandException as ex:
-            LOG.debug("get_state exception: " + ex)
-            self.err_disconnect("QTM exception: " + ex)
+            LOG.debug("get_state exception: {}".format(ex))
+            self.err_disconnect("QTM error: {}".format(ex))
 
     async def stop_stream(self):
         if self.conn and self.conn.has_transport():
             try:
                 await self.conn.stream_frames_stop()
             except qtm.QRTCommandException as ex:
-                LOG.debug("stream_frames_stop exception: " + ex)
+                LOG.debug("stream_frames_stop exception: {}".format(ex))
         if self.receiver_queue:
             self.receiver_queue.put_nowait(None)
             await self.receiver_task
@@ -309,30 +338,28 @@ class Link:
             packet = await self.conn.get_parameters(
                 parameters=["general", "3d", "6d"],
             )
-        except qtm.QRTCommandException as ex:
-            LOG.debug("get_parameters exception: " + ex)
-            self.err_disconnect("QTM exception: " + ex)
-            return
-        params = xml_parse_parameters(packet.decode("utf-8"))
-        if params.marker_count() == 0 or params.body_count() == 0:
-            self.err_disconnect("QTM is streaming but not any 3D or 6DOF data")
-            LOG.debug("marker_count {} body_count {}".format(
-                params.marker_count(), params.body_count()
-            ))
-            return
-        self.params = params
-        self.receiver_queue = asyncio.Queue()
-        self.receiver_task = asyncio.ensure_future(self.stream_receiver())
-        self.lsl_open_stream_outlet()
-        try:
+            params = xml_parse_parameters(packet.decode("utf-8"))
+            if params.marker_count() == 0 or params.body_count() == 0:
+                self.err_disconnect("QTM is streaming but not any 3D or 6DOF data")
+                LOG.debug("marker_count {} body_count {}".format(
+                    params.marker_count(), params.body_count()
+                ))
+                return
+            self.params = params
+            self.receiver_queue = asyncio.Queue()
+            self.receiver_task = asyncio.ensure_future(self.stream_receiver())
+            self.lsl_open_stream_outlet()
             await self.conn.stream_frames(
                 components=["3d", "6deuler"],
                 on_packet=self.receiver_queue.put_nowait,
             )
             self.set_state(State.STREAMING)
         except qtm.QRTCommandException as ex:
-            LOG.debug("stream_frames exception: " + ex)
-            self.err_disconnect("QTM exception: " + ex)
+            LOG.debug("stream_frames exception: {}".format(ex))
+            self.err_disconnect("QTM error: {}".format(ex))
+        except Exception as ex:
+            self.err_disconnect("Internal error")
+            raise ex
 
     async def stream_receiver(self):
         try:

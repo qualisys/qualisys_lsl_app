@@ -92,8 +92,6 @@ class App(tk.Frame):
             self.lbl_status["text"] = "Waiting"
         elif new_state == qlsl.State.STREAMING:
             self.lbl_status["text"] = "Streaming"
-        elif new_state == qlsl.State.STOPPING:
-            self.lbl_status["text"] = "Stopping"
         elif new_state == qlsl.State.STOPPED:
             self.lbl_status["text"] = "Stopped"
             self.enable_input(True)
