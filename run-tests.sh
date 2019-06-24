@@ -1,5 +1,5 @@
 #!/bin/bash
 
-python -m pytest "./tests"
+python -m pytest "./test"
 
 sleep 2

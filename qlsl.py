@@ -35,7 +35,7 @@ def xml_parse_parameters_general(xml_general):
                         position[tag] = float(xml_camera_pos_param.text)
                 camera["position"] = position
         cameras.append(camera)
-    frequency = xml_general.findtext("./Frequency")
+    frequency = float(xml_general.findtext("./Frequency"))
     return {
         "frequency": frequency,
         "cameras": cameras,
@@ -270,7 +270,7 @@ class Link:
     
     def lsl_open_stream_outlet(self):
         self.lsl_info = self.lsl_new_stream_info()
-        self.lsl_outlet = StreamOutlet(self.lsl_info, 32, 360)
+        self.lsl_outlet = StreamOutlet(info=self.lsl_info, max_buffered=180)
 
     def qtm_packet_to_lsl_sample(self, packet):
         sample = []
