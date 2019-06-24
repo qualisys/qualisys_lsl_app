@@ -10,7 +10,7 @@ Ensure Python 3.5 or above is installed.
 
 1. Upgrade to latest pip
 ```
-python -m pip install pip
+python -m pip install pip --upgrade
 ```
 2. Install dependencies
 ```
@@ -30,6 +30,6 @@ python gui.py
 3. Enter address, port, and start
 > ![qtm_lsl_init.PNG](images/qtm_lsl_init.PNG)
 
-Once started, the app is either in a waiting or streaming state. Waiting means that QTM is not streaming data and so there is no LSL stream open. Once QTM starts streaming, the LSL stream is opened. Similarly, the LSL stream is closed once QTM stops streaming.
+Once started, the app is either in a Waiting or Streaming state. In the Waiting state there is _no_ LSL Stream Outlet open, as the app is waiting for QTM to start streaming. When QTM is streaming, the app is in the Streaming state and QTM data is passed through an LSL Stream Outlet. The app toggles between these states as QTM starts/stops streaming.
 > ![qtm_lsl_wait.PNG](images/qtm_lsl_wait.PNG)
 ![qtm_lsl_stream.PNG](images/qtm_lsl_stream.PNG)

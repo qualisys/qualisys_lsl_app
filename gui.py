@@ -30,15 +30,15 @@ class App(tk.Frame):
         self.start_time = 0
     
     def set_geometry(self):
-        self.master.update()
         ws = self.master.winfo_screenwidth()
         hs = self.master.winfo_screenheight()
+        x = int(ws/2.5)
+        y = int(hs/2.5)
+        self.master.geometry("+{}+{}".format(x, y))
+        self.master.update()
         w = self.master.winfo_width()
         h = self.master.winfo_height()
-        x = int((ws/2) - (w/2))
-        y = int((hs/2) - (h/2))
         self.master.minsize(w, h)
-        self.master.geometry("{}x{}+{}+{}".format(w, h, x, y))
 
     def create_layout(self):
         self.qtm_host = tk.StringVar()
@@ -54,7 +54,7 @@ class App(tk.Frame):
         self.entry_port.grid(row=1, column=1)
 
         self.btn_link = tk.Button(
-            self, text="Link", width=10, command=self.link_or_unlink
+            self, text="Link", width=10, command=self.start_or_stop
         )
         self.btn_link.grid(row=2, column=1, sticky="e")
         self.lbl_time = tk.Label(self, text="")
@@ -92,21 +92,29 @@ class App(tk.Frame):
             self.lbl_status["text"] = "Waiting"
         elif new_state == qlsl.State.STREAMING:
             self.lbl_status["text"] = "Streaming"
+        elif new_state == qlsl.State.STOPPING:
+            self.lbl_status["text"] = "Stopping"
         elif new_state == qlsl.State.STOPPED:
             self.lbl_status["text"] = "Stopped"
+            self.enable_input(True)
+            self.link_handle = None
+            self.waiting_for_link = False
     
     def on_error(self, msg):
         messagebox.showerror("Error", msg)
 
-    def link_or_unlink(self):
+    def start_or_stop(self):
         if self.waiting_for_link: return
         self.waiting_for_link = True
         if self.link_handle:
-            self.do_unlink()
+            self.do_stop()
         else:
-            self.do_link()
+            self.do_start()
+
+    def do_stop(self):
+        asyncio.ensure_future(self.link_handle.shutdown())
     
-    def do_link(self):
+    def do_start(self):
         port_str = self.qtm_port.get()
         try:
             port = int(port_str)
@@ -116,19 +124,14 @@ class App(tk.Frame):
             self.on_error("'{}' is not a valid port number".format(port_str))
             return
         host = self.qtm_host.get()
-        asyncio.ensure_future(self.do_async_link(host, port))
+        asyncio.ensure_future(self.do_async_start(host, port))
 
-    def do_unlink(self):
-        if self.link_handle:
-            asyncio.ensure_future(self.do_async_unlink())
-    
-    async def do_async_link(self, host, port):
-        if self.link_handle: return
+    async def do_async_start(self, host, port):
         try:
-            self.link_handle = await qlsl.setup_link(
+            self.link_handle = await qlsl.init_link(
                 host, port, self.on_state_changed, self.on_error
             )
-            await self.link_handle.poll_server_state()
+            await self.link_handle.poll_qtm_state()
             self.enable_input(False)
             self.start_time = time.time()
         except qlsl.LinkError as err:
@@ -137,14 +140,6 @@ class App(tk.Frame):
         finally:
             self.waiting_for_link = False
 
-    async def do_async_unlink(self):
-        try:
-            await qlsl.teardown_link(self.link_handle)
-            self.link_handle = None
-            self.enable_input(True)
-        finally:
-            self.waiting_for_link = False
-    
     async def updater(self, interval=1/20):
         LOG.debug("updater enter")
         try:
