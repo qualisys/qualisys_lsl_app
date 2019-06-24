@@ -15,6 +15,7 @@ from qtm.packet import QRTComponentType
 
 LOG = logging.getLogger("qlsl")
 QTM_DEFAULT_PORT = 22223
+QTM_DEFAULT_VERSION = "1.19"
 
 def xml_parse_parameters_general(xml_general):
     frequency = None
@@ -353,17 +354,25 @@ class LinkError(Exception):
 async def init_link(
     qtm_host,
     qtm_port=QTM_DEFAULT_PORT,
+    qtm_version=QTM_DEFAULT_VERSION,
     on_state_changed=None,
     on_error=None
 ):
-    LOG.debug("init_link enter")
-    link = Link(qtm_host, qtm_port, on_state_changed, on_error)
-    link.conn = await qtm.connect(
-        host=qtm_host, port=qtm_port,
-        on_event=link.on_event, on_disconnect=link.on_disconnect,
-    )
-    if link.conn is None:
-        raise LinkError("Failed to connect to QTM on '{}:{}'".format(qtm_host, qtm_port))
-    link.set_state(State.WAITING)
-    LOG.debug("init_link exit")
+    try:
+        LOG.debug("init_link enter")
+        link = Link(qtm_host, qtm_port, on_state_changed, on_error)
+        link.conn = await qtm.connect(
+            host=qtm_host,
+            port=qtm_port,
+            version=qtm_version,
+            on_event=link.on_event,
+            on_disconnect=link.on_disconnect,
+        )
+        if link.conn is None:
+            msg = "Failed to connect to QTM on '{}:{}' with protocol version '{}'" \
+                .format(qtm_host, qtm_port, qtm_version)
+            raise LinkError(msg)
+        link.set_state(State.WAITING)
+    finally:
+        LOG.debug("init_link exit")
     return link

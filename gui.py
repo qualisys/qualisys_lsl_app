@@ -129,7 +129,11 @@ class App(tk.Frame):
     async def do_async_start(self, host, port):
         try:
             self.link_handle = await qlsl.init_link(
-                host, port, self.on_state_changed, self.on_error
+                qtm_host=host,
+                qtm_port=port,
+                qtm_version=qlsl.QTM_DEFAULT_VERSION,
+                on_state_changed=self.on_state_changed,
+                on_error=self.on_error,
             )
             await self.link_handle.poll_qtm_state()
             self.enable_input(False)
