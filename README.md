@@ -2,12 +2,12 @@
 Stream Qualisys Track Manager (QTM) 3D and 6DOF data as Lab Streaming Layer (LSL) Motion Capture (MoCap) data.
 
 ## Dependencies
+- Python 3.5 or above
 - [Qualisys SDK for Python](https://github.com/qualisys/qualisys_python_sdk)
 - Python interface to LSL [pylsl](https://github.com/labstreaminglayer/liblsl-Python)
+- Python tkinter (for GUI, see google)
 
 ## Installation
-Ensure Python 3.5 or above is installed.
-
 1. Upgrade to latest pip
 ```
 python -m pip install pip --upgrade
@@ -16,6 +16,9 @@ python -m pip install pip --upgrade
 ```
 python -m pip install -r requirements.txt
 ```
+
+If this is unsuccessful, consult the links in the dependencies section for instructions on how to manually install them. Note that some Python installations include tkinter by default and some require you to install it separately.
+
 3. (Optional) Install dev dependencies to be able to run the tests
 ```
 python -m pip install -r requirements-dev.txt

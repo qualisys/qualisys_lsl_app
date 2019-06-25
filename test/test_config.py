@@ -83,16 +83,37 @@ def test_qtm_wait():
         camera_count=0,
     )
 
+def get_lsl_desc_xml(lines):
+    res = []
+    append = False
+    offset = 0
+    for i, line in enumerate(lines):
+        line = re.sub(r"\s+", " ", line).strip()
+        if line == "<desc>":
+            offset = i
+            append = True
+        if append:
+            res.append(line)
+        if line == "</desc>":
+            break
+    assert len(res) > 0
+    return res, offset
+
 def verify_lsl_metadata(config_file, metadata_file):
     config = load_config(config_file)
     metadata = new_lsl_stream_info(config, "127.0.0.1", 50)
     actual_xml = metadata.as_xml().splitlines()
     expected_xml = load_file(metadata_file).splitlines()
+    actual_xml, actual_offset = get_lsl_desc_xml(actual_xml)
+    expected_xml, expected_offset = get_lsl_desc_xml(expected_xml)
     assert len(actual_xml) == len(expected_xml)
     for i, lines in enumerate(zip(actual_xml, expected_xml)):
-        actual = re.sub(r"\s+", " ", lines[0]).strip()
-        expected = re.sub(r"\s+", " ", lines[1]).strip()
-        assert actual == expected, "Error on line {}".format(i+1)
+        actual = lines[0]
+        expected = lines[1]
+        assert actual == expected, "Error on lines {} and {}".format(
+            actual_offset + i + 1,
+            expected_offset + i + 1,
+        )
 
 def save_metadata(config_file, metadata_file):
     config = load_config(config_file)
