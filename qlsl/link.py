@@ -8,14 +8,15 @@ import logging
 import time
 
 from pylsl import StreamInfo, StreamOutlet
+import qtm
+from qtm import QRTEvent
+
 from qlsl.config import (
     Config,
     new_lsl_stream_info,
     parse_qtm_parameters,
     qtm_packet_to_lsl_sample,
 )
-import qtm
-from qtm import QRTEvent
 
 LOG = logging.getLogger("qlsl")
 QTM_DEFAULT_PORT = 22223
@@ -128,7 +129,7 @@ class Link:
             )
             config = parse_qtm_parameters(packet.decode("utf-8"))
             if config.marker_count() == 0 or config.body_count() == 0:
-                self.err_disconnect("QTM is streaming but not any 3D or 6DOF data")
+                self.err_disconnect("No 3D or 6DOF data available from QTM")
                 LOG.debug("marker_count {} body_count {}".format(
                     config.marker_count(), config.body_count()
                 ))

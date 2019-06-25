@@ -14,11 +14,11 @@ python -m pip install pip --upgrade
 ```
 2. Install dependencies
 ```
-python -m pip install -r "./requirements.txt"
+python -m pip install -r requirements.txt
 ```
 3. (Optional) Install dev dependencies to be able to run the tests
 ```
-python -m pip install -r "./requirements-dev.txt"
+python -m pip install -r requirements-dev.txt
 ```
 
 ## Usage

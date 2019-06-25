@@ -40,12 +40,14 @@ class Config:
             return self.general["cameras"]
         except KeyError:
             return []
+    
+    def camera_count(self):
+        return len(self.cameras())
 
     def channel_count(self):
         return 3*self.marker_count() + 6*self.body_count()
 
 def parse_qtm_parameters(xml_string):
-    print(xml_string)
     xml = ET.fromstring(xml_string)
     config = Config()
     xml_general = xml.find("./General")
