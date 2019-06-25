@@ -33,6 +33,6 @@ python -m qlsl.gui
 3. Enter address, port, and start
 > ![qtm_lsl_init.PNG](images/qtm_lsl_init.PNG)
 
-Once started, the app is either in a Waiting or Streaming state. In the Waiting state there is _no_ LSL Stream Outlet open, as the app is waiting for QTM to start streaming. When QTM is streaming, the app is in the Streaming state and QTM data is passed through an LSL Stream Outlet. The app toggles between these states as QTM starts/stops streaming.
+Once started, the app is either in a Waiting or Streaming state. In the Waiting state there is _no_ LSL stream outlet open, as the app is waiting for QTM to start streaming. When QTM is streaming, the app is in the Streaming state and QTM data is passed through an LSL stream outlet. The app toggles between these states as QTM starts/stops streaming.
 > ![qtm_lsl_wait.PNG](images/qtm_lsl_wait.PNG)
 ![qtm_lsl_stream.PNG](images/qtm_lsl_stream.PNG)
