@@ -124,6 +124,8 @@ class App(tk.Frame):
 
     async def do_async_start(self, host, port):
         try:
+            self.lbl_status["text"] = "Connecting"
+            self.enable_input(False)
             self.link_handle = await link.init(
                 qtm_host=host,
                 qtm_port=port,
@@ -132,9 +134,10 @@ class App(tk.Frame):
                 on_error=self.on_error,
             )
             await self.link_handle.poll_qtm_state()
-            self.enable_input(False)
             self.start_time = time.time()
         except link.LinkError as err:
+            self.lbl_status["text"] = "Start failed"
+            self.enable_input(True)
             self.link_handle = None
             self.on_error(err)
         finally:

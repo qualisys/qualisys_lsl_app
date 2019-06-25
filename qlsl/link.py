@@ -147,7 +147,8 @@ class Link:
             LOG.debug("stream_frames exception: {}".format(ex))
             self.err_disconnect("QTM error: {}".format(ex))
         except Exception as ex:
-            self.err_disconnect("Internal error")
+            LOG.debug("link::start_stream exception: {}".format(ex))
+            self.err_disconnect("Internal error: {}".format(ex))
             raise ex
 
     async def stream_receiver(self):
@@ -192,6 +193,11 @@ async def init(
                 .format(qtm_host, qtm_port, qtm_version)
             raise LinkError(msg)
         link.set_state(State.WAITING)
+    except LinkError:
+        raise
+    except Exception as ex:
+        LOG.debug("link::init exception: {}".format(ex))
+        raise LinkError("Internal error: {}".format(ex))
     finally:
         LOG.debug("link::init exit")
     return link
