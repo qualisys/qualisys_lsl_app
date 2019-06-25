@@ -25,7 +25,7 @@ python -m pip install -r "./requirements-dev.txt"
 1. Ensure QTM is running either locally or on an external host that you are able to ping
 2. Start LSL App
 ```
-python gui.py
+python -m qlsl.gui
 ```
 3. Enter address, port, and start
 > ![qtm_lsl_init.PNG](images/qtm_lsl_init.PNG)

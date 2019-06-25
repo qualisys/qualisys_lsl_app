@@ -8,12 +8,10 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 
-import qlsl
+import qlsl.link as link
 
-LOG_LEVEL = logging.DEBUG
-logging.getLogger("qlsl").setLevel(LOG_LEVEL)
-LOG = logging.getLogger("gui")
-LOG.setLevel(LOG_LEVEL)
+LOG = logging.getLogger("qlsl")
+LOG.setLevel(logging.DEBUG)
 
 class App(tk.Frame):
     def __init__(self, master, async_loop):
@@ -48,7 +46,7 @@ class App(tk.Frame):
         self.entry_host.grid(row=0, column=1)
 
         self.qtm_port = tk.StringVar()
-        self.qtm_port.set(qlsl.QTM_DEFAULT_PORT)
+        self.qtm_port.set(link.QTM_DEFAULT_PORT)
         tk.Label(self, text="QTM Server Port").grid(row=1, sticky="w")
         self.entry_port = tk.Entry(self, textvariable=self.qtm_port)
         self.entry_port.grid(row=1, column=1)
@@ -84,15 +82,15 @@ class App(tk.Frame):
             self.btn_link["text"] = "Stop"
     
     def on_state_changed(self, new_state):
-        if new_state == qlsl.State.INITIAL:
+        if new_state == link.State.INITIAL:
             self.lbl_status["text"] = ""
             self.lbl_time["text"] = ""
             self.lbl_packets["text"] = ""
-        elif new_state == qlsl.State.WAITING:
+        elif new_state == link.State.WAITING:
             self.lbl_status["text"] = "Waiting"
-        elif new_state == qlsl.State.STREAMING:
+        elif new_state == link.State.STREAMING:
             self.lbl_status["text"] = "Streaming"
-        elif new_state == qlsl.State.STOPPED:
+        elif new_state == link.State.STOPPED:
             self.lbl_status["text"] = "Stopped"
             self.enable_input(True)
             self.link_handle = None
@@ -126,24 +124,24 @@ class App(tk.Frame):
 
     async def do_async_start(self, host, port):
         try:
-            self.link_handle = await qlsl.init_link(
+            self.link_handle = await link.init(
                 qtm_host=host,
                 qtm_port=port,
-                qtm_version=qlsl.QTM_DEFAULT_VERSION,
+                qtm_version=link.QTM_DEFAULT_VERSION,
                 on_state_changed=self.on_state_changed,
                 on_error=self.on_error,
             )
             await self.link_handle.poll_qtm_state()
             self.enable_input(False)
             self.start_time = time.time()
-        except qlsl.LinkError as err:
+        except link.LinkError as err:
             self.link_handle = None
             self.on_error(err)
         finally:
             self.waiting_for_link = False
 
     async def updater(self, interval=1/20):
-        LOG.debug("updater enter")
+        LOG.debug("gui::updater enter")
         try:
             while True:
                 if self.link_handle:
@@ -157,11 +155,11 @@ class App(tk.Frame):
                 self.update()
                 await asyncio.sleep(interval)
         finally:
-            LOG.debug("updater exit")
+            LOG.debug("gui::updater exit")
     
     async def stop_async_loop(self):
         self.async_loop.stop()
-        LOG.debug("stop_async_loop")
+        LOG.debug("gui::stop_async_loop")
     
     def run_async_loop(self):
         asyncio.ensure_future(self.updater())
