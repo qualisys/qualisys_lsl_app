@@ -38,6 +38,8 @@ class Link:
         self.state = State.INITIAL
         self.conn = None
         self.packet_count = 0
+        self.start_time = 0
+        self.stop_time = 0
         self.reset_stream_context()
     
     def reset_stream_context(self):
@@ -53,8 +55,24 @@ class Link:
         self.on_state_changed(self.state)
         return prev_state
     
+    def is_streaming(self):
+        return self.state == State.STREAMING
+    
+    def is_waiting(self):
+        return self.state == State.WAITING
+
     def is_stopped(self):
         return self.state in [State.INITIAL, State.STOPPED]
+    
+    def elapsed_time(self):
+        if self.start_time > 0:
+            return time.time() - self.start_time
+        return 0
+    
+    def final_time(self):
+        if self.stop_time > self.start_time:
+            return self.stop_time - self.start_time
+        return 0
     
     def on_state_changed(self, new_state):
         if self._on_state_changed:
@@ -133,6 +151,7 @@ class Link:
             await self.receiver_task
         self.reset_stream_context()
         if self.state == State.STREAMING:
+            self.stop_time = time.time()
             self.set_state(State.WAITING)
     
     async def start_stream(self):
@@ -156,13 +175,14 @@ class Link:
                 on_packet=self.receiver_queue.put_nowait,
             )
             self.packet_count = 0
+            self.start_time = time.time()
             self.set_state(State.STREAMING)
         except qtm.QRTCommandException as ex:
             LOG.error("QTM: stream_frames exception: {}".format(ex))
             self.err_disconnect("QTM error: {}".format(ex))
         except Exception as ex:
             LOG.error("link: start_stream exception: {}".format(ex))
-            self.err_disconnect("Internal error: {}".format(ex))
+            self.err_disconnect("An internal error occurred. See log messages for details.")
             raise ex
 
     async def stream_receiver(self):
@@ -183,6 +203,10 @@ class Link:
                 else:
                     self.packet_count += 1
                     self.lsl_outlet.push_sample(sample)
+        except Exception as ex:
+            LOG.error("link: stream_receiver exception: {}".format(ex))
+            self.err_disconnect("An internal error occurred. See log messages for details.")
+            raise
         finally:
             LOG.debug("link: stream_receiver exit")
 
@@ -217,7 +241,7 @@ async def init(
         raise
     except Exception as ex:
         LOG.error("link: init exception: {}".format(ex))
-        raise LinkError("Internal error: {}".format(ex))
+        raise LinkError("An internal error occurred. See log messages for details.")
     finally:
         LOG.debug("link: init exit")
     return link

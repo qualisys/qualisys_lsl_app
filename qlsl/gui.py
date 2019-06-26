@@ -19,13 +19,13 @@ class App(tk.Frame):
         self.master = master
         self.async_loop = async_loop
         self.master.title("QTM LSL App")
+        self.master.wm_iconbitmap("images/qtm.ico")
         self.pack()
         self.master.protocol("WM_DELETE_WINDOW", self.close)
         self.create_layout()
         self.set_geometry()
         self.link_handle = None
         self.waiting_for_link = False
-        self.start_time = 0
     
     def set_geometry(self):
         ws = self.master.winfo_screenwidth()
@@ -87,7 +87,7 @@ class App(tk.Frame):
             self.lbl_time["text"] = ""
             self.lbl_packets["text"] = ""
         elif new_state == link.State.WAITING:
-            self.lbl_status["text"] = "Waiting"
+            self.lbl_status["text"] = "Waiting on QTM"
         elif new_state == link.State.STREAMING:
             self.lbl_status["text"] = "Streaming"
         elif new_state == link.State.STOPPED:
@@ -124,7 +124,7 @@ class App(tk.Frame):
 
     async def do_async_start(self, host, port):
         try:
-            self.lbl_status["text"] = "Connecting"
+            self.lbl_status["text"] = "Connecting to QTM"
             self.enable_input(False)
             self.link_handle = await link.init(
                 qtm_host=host,
@@ -134,7 +134,6 @@ class App(tk.Frame):
                 on_error=self.on_error,
             )
             await self.link_handle.poll_qtm_state()
-            self.start_time = time.time()
         except link.LinkError as err:
             self.lbl_status["text"] = "Start failed"
             self.enable_input(True)
@@ -143,8 +142,7 @@ class App(tk.Frame):
         finally:
             self.waiting_for_link = False
 
-    def format_packet_count(self):
-        count = self.link_handle.packet_count
+    def format_packet_count(self, count):
         mil = 1000000
         if count > mil:
             m = int(count/mil)
@@ -159,19 +157,27 @@ class App(tk.Frame):
         else:
             fmt = str(count)
         return fmt
+    
+    def format_time(self, tm):
+        fmt = time.strftime('%H:%M:%S', time.gmtime(tm))
+        return fmt
+    
+    def display_link_info(self):
+        if self.link_handle and self.link_handle.is_streaming():
+            elapsed_time = self.link_handle.elapsed_time()
+            self.lbl_time["text"] = "Elapsed time: {}".format(
+                self.format_time(elapsed_time)
+            )
+            packet_count = self.link_handle.packet_count
+            self.lbl_packets["text"] = "Packet count: {}".format(
+                self.format_packet_count(packet_count)
+            ) 
 
     async def updater(self, interval=1/20):
         try:
             LOG.debug("gui: updater enter")
             while True:
-                if self.link_handle:
-                    elapsed_time = time.time() - self.start_time
-                    self.lbl_time["text"] = "Elapsed time: {}".format(
-                        time.strftime('%H:%M:%S', time.gmtime(elapsed_time))
-                    )
-                    self.lbl_packets["text"] = "Packet count: {}".format(
-                        self.format_packet_count()
-                    ) 
+                self.display_link_info()
                 self.update()
                 await asyncio.sleep(interval)
         finally:
