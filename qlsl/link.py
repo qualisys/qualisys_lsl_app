@@ -174,9 +174,14 @@ class Link:
                 components=["3d", "6deuler"],
                 on_packet=self.receiver_queue.put_nowait,
             )
+            LOG.info("Stream started with {} marker(s) and {} rigid bod(y/ies)".format(
+                config.marker_count(), config.body_count()
+            ))
             self.packet_count = 0
             self.start_time = time.time()
             self.set_state(State.STREAMING)
+        except asyncio.CancelledError:
+            raise
         except qtm.QRTCommandException as ex:
             LOG.error("QTM: stream_frames exception: {}".format(ex))
             self.err_disconnect("QTM error: {}".format(ex))
@@ -203,6 +208,8 @@ class Link:
                 else:
                     self.packet_count += 1
                     self.lsl_outlet.push_sample(sample)
+        except asyncio.CancelledError:
+            raise
         except Exception as ex:
             LOG.error("link: stream_receiver exception: {}".format(ex))
             self.err_disconnect("An internal error occurred. See log messages for details.")

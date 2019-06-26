@@ -5,6 +5,7 @@
 import argparse
 import asyncio
 import logging
+import os
 import time
 import tkinter as tk
 from tkinter import messagebox
@@ -19,13 +20,21 @@ class App(tk.Frame):
         self.master = master
         self.async_loop = async_loop
         self.master.title("QTM LSL App")
-        self.master.wm_iconbitmap("images/qtm.ico")
+        self.set_icon()
         self.pack()
         self.master.protocol("WM_DELETE_WINDOW", self.close)
         self.create_layout()
         self.set_geometry()
         self.link_handle = None
         self.waiting_for_link = False
+    
+    def set_icon(self):
+        try:
+            cwd = os.getcwd()
+            icon_path = os.path.join(cwd, "images", "qtm.ico")
+            self.master.iconbitmap(icon_path)
+        except Exception as ex:
+            LOG.error("Failed to set window icon: {}".format(ex))
     
     def set_geometry(self):
         ws = self.master.winfo_screenwidth()
