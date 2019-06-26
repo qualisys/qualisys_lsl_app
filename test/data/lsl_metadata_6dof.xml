@@ -23,19 +23,19 @@
 				<label>Head_X</label>
 				<object>Head</object>
 				<type>PositionX</type>
-				<unit>millimeters</unit>
+				<unit>meters</unit>
 			</channel>
 			<channel>
 				<label>Head_Y</label>
 				<object>Head</object>
 				<type>PositionY</type>
-				<unit>millimeters</unit>
+				<unit>meters</unit>
 			</channel>
 			<channel>
 				<label>Head_Z</label>
 				<object>Head</object>
 				<type>PositionZ</type>
-				<unit>millimeters</unit>
+				<unit>meters</unit>
 			</channel>
 			<channel>
 				<label>Head_R</label>
@@ -116,7 +116,8 @@
 			</cameras>
 		</setup>
 		<acquisition>
-			<model>Qualisys</model>
+			<manufacturer>Qualisys</manufacturer>
+			<model>Qualisys Track Manager</model>
 		</acquisition>
 	</desc>
 </info>

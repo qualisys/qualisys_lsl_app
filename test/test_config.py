@@ -115,7 +115,7 @@ def verify_lsl_metadata(config_file, metadata_file):
             expected_offset + i + 1,
         )
 
-def save_metadata(config_file, metadata_file):
+def save_lsl_metadata(config_file, metadata_file):
     config = load_config(config_file)
     metadata = new_lsl_stream_info(config, "127.0.0.1", 50)
     xml = metadata.as_xml()
@@ -157,22 +157,25 @@ class Packet:
 Position = namedtuple("Position", "x y z")
 Rotation = namedtuple("Rotation", "a1 a2 a3")
 
+def m_to_mm(m):
+    return 1000*m
+
 def verify_lsl_sample(packet):
+    def verify_position(x, y, z, pos):
+        assert m_to_mm(x) == pos.x
+        assert m_to_mm(y) == pos.y
+        assert m_to_mm(z) == pos.z
     sample = qtm_packet_to_lsl_sample(packet)
     assert len(sample) == packet.channel_count()
     n = 0
     for marker in packet.markers:
         x, y, z = sample[n], sample[n+1], sample[n+2]
         n += 3
-        assert marker.x == x
-        assert marker.y == y
-        assert marker.z == z
+        verify_position(x, y, z, marker)
     for position, rotation in packet.bodies:
         x, y, z = sample[n], sample[n+1], sample[n+2]
         n += 3
-        assert position.x == x
-        assert position.y == y
-        assert position.z == z
+        verify_position(x, y, z, position)
         a1, a2, a3 = sample[n], sample[n+1], sample[n+2]
         n += 3
         assert rotation.a1 == a1
@@ -187,8 +190,8 @@ def test_qtm_packet_to_lsl_3d_6dof():
             QRTComponentType.Component6dEuler
         ],
         markers=[
-            Position(3, 6, 9),
-            Position(4, 8, 12),
+            Position(31, 62, 9),
+            Position(407, 808, 1209),
         ],
         bodies=[
             (Position(5, 10, 15), Rotation(30, 60, 90)),
@@ -203,8 +206,8 @@ def test_qtm_packet_to_lsl_3d():
             QRTComponentType.Component6dEuler
         ],
         markers=[
-            Position(3, 6, 9),
-            Position(4, 8, 12),
+            Position(31, 62, 9),
+            Position(407, 808, 1209),
         ],
     )
     verify_lsl_sample(packet)

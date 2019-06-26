@@ -124,20 +124,27 @@ def parse_qtm_parameters_6d(xml_6d):
         "euler": euler,
     }
 
+def mm_to_m(mm):
+    return round(mm/1000, 6)
+
+# Note: 
+# Changes in channel metadata should be reflected in qtm_packet_to_lsl_sample,
+# and vice versa. 
+
 def qtm_packet_to_lsl_sample(packet):
     sample = []
     if QRTComponentType.Component3d in packet.components:
         _, markers = packet.get_3d_markers()
         for marker in markers:
-            sample.append(marker.x)
-            sample.append(marker.y)
-            sample.append(marker.z)
+            sample.append(mm_to_m(marker.x))
+            sample.append(mm_to_m(marker.y))
+            sample.append(mm_to_m(marker.z))
     if QRTComponentType.Component6dEuler in packet.components:
         _, bodies = packet.get_6d_euler()
         for position, rotation in bodies:
-            sample.append(position.x)
-            sample.append(position.y)
-            sample.append(position.z)
+            sample.append(mm_to_m(position.x))
+            sample.append(mm_to_m(position.y))
+            sample.append(mm_to_m(position.z))
             sample.append(rotation.a1)
             sample.append(rotation.a2)
             sample.append(rotation.a3)
@@ -156,38 +163,39 @@ def new_lsl_stream_info(config, qtm_host, qtm_port):
     markers = setup.append_child("markers")
     objects = setup.append_child("objects")
     cameras = setup.append_child("cameras")
-    # Note: 
-    # qtm_packet_to_lsl_sample must be updated if the order of functions calls
-    # that take channels as an argument is changed.
     lsl_stream_info_add_markers(config, channels, markers)
     lsl_stream_info_add_6dof(config, channels, objects)
     lsl_stream_info_add_cameras(config, cameras)
     info.desc().append_child("acquisition") \
-        .append_child_value("model", "Qualisys")
+        .append_child_value("manufacturer", "Qualisys") \
+        .append_child_value("model", "Qualisys Track Manager")
     return info
 
 def lsl_stream_info_add_markers(config, channels, markers):
-    def append_channel(marker, component):
+    def append_channel(marker, component, ch_type, unit):
         label = "{}_{}".format(marker, component)
         channels.append_child("channel") \
             .append_child_value("label", label) \
             .append_child_value("marker", marker) \
-            .append_child_value("type", "Position" + component) \
-            .append_child_value("unit", "millimeters")
+            .append_child_value("type", ch_type) \
+            .append_child_value("unit", unit)
+    def append_position_channel(marker, component):
+        ch_type = "Position" + component
+        append_channel(marker, component, ch_type, "meters")
     for marker in config.markers():
         markers.append_child("marker") \
             .append_child_value("label", marker)
-        append_channel(marker, "X")
-        append_channel(marker, "Y")
-        append_channel(marker, "Z")
+        append_position_channel(marker, "X")
+        append_position_channel(marker, "Y")
+        append_position_channel(marker, "Z")
 
 def lsl_stream_info_add_6dof(config, channels, objects):
-    def append_channel(body, base_type, component, unit):
+    def append_channel(body, component, ch_type, unit):
         label = "{}_{}".format(body, component)
         channels.append_child("channel") \
             .append_child_value("label", label) \
             .append_child_value("object", body) \
-            .append_child_value("type", base_type + component) \
+            .append_child_value("type", ch_type) \
             .append_child_value("unit", unit)
     euler_angle_to_component = {
         "pitch": "P",
@@ -195,10 +203,12 @@ def lsl_stream_info_add_6dof(config, channels, objects):
         "yaw": "H",
     }
     def append_position_channel(body, component):
-        append_channel(body, "Position", component, "millimeters")
+        ch_type = "Position" + component
+        append_channel(body, component, ch_type, "meters")
     def append_orientation_channel(body, angle):
         component = euler_angle_to_component[angle.lower()]
-        append_channel(body, "Orientation", component, "degrees")
+        ch_type = "Orientation" + component
+        append_channel(body, component, ch_type, "degrees")
     for body in config.bodies():
         name = body["name"]
         objects.append_child("object") \
@@ -213,15 +223,14 @@ def lsl_stream_info_add_6dof(config, channels, objects):
         append_orientation_channel(name, angles["third"])
 
 def lsl_stream_info_add_cameras(config, cameras):
-    def scale_pos(pos):
-        # Convert from mm to m
-        return str(round(pos/1000, 6))
+    def fmt_pos(pos):
+        return str(mm_to_m(pos))
     for camera in config.cameras():
         info = cameras.append_child("cameras") \
             .append_child_value("label", camera["id"])
         if "position" in camera:
             pos = camera["position"]
             info.append_child("position") \
-                .append_child_value("X", scale_pos(pos["x"])) \
-                .append_child_value("Y", scale_pos(pos["y"])) \
-                .append_child_value("Z", scale_pos(pos["z"]))
+                .append_child_value("X", fmt_pos(pos["x"])) \
+                .append_child_value("Y", fmt_pos(pos["y"])) \
+                .append_child_value("Z", fmt_pos(pos["z"]))
