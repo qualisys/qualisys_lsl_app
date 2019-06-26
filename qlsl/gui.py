@@ -30,11 +30,10 @@ class App(tk.Frame):
     
     def set_icon(self):
         try:
-            cwd = os.getcwd()
-            icon_path = os.path.join(cwd, "images", "qtm.ico")
+            icon_path = os.path.join("images", "qtm.ico")
             self.master.iconbitmap(icon_path)
         except Exception as ex:
-            LOG.error("Failed to set window icon: {}".format(ex))
+            LOG.debug("Failed to set window icon: {}".format(ex))
     
     def set_geometry(self):
         ws = self.master.winfo_screenwidth()
