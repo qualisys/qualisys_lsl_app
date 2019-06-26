@@ -155,6 +155,7 @@ class Link:
                 components=["3d", "6deuler"],
                 on_packet=self.receiver_queue.put_nowait,
             )
+            self.packet_count = 0
             self.set_state(State.STREAMING)
         except qtm.QRTCommandException as ex:
             LOG.error("QTM: stream_frames exception: {}".format(ex))
