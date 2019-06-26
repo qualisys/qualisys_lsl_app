@@ -244,6 +244,8 @@ async def init(
             LOG.error(msg)
             raise LinkError(msg)
         link.set_state(State.WAITING)
+    except asyncio.CancelledError:
+        raise
     except LinkError:
         raise
     except Exception as ex:

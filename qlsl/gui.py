@@ -26,7 +26,7 @@ class App(tk.Frame):
         self.create_layout()
         self.set_geometry()
         self.link_handle = None
-        self.waiting_for_link = False
+        self.start_task = None
     
     def set_icon(self):
         try:
@@ -102,18 +102,19 @@ class App(tk.Frame):
             self.lbl_status["text"] = "Stopped"
             self.enable_input(True)
             self.link_handle = None
-            self.waiting_for_link = False
     
     def on_error(self, msg):
         messagebox.showerror("Error", msg)
-
+    
     def start_or_stop(self):
-        if self.waiting_for_link: return
-        self.waiting_for_link = True
         if self.link_handle:
             self.do_stop()
         else:
-            self.do_start()
+            if self.start_task:
+                if not self.start_task.cancelled():
+                    self.start_task.cancel()
+            else:
+                self.do_start()
 
     def do_stop(self):
         asyncio.ensure_future(self.link_handle.shutdown())
@@ -128,7 +129,7 @@ class App(tk.Frame):
             self.on_error("'{}' is not a valid port number".format(port_str))
             return
         host = self.qtm_host.get()
-        asyncio.ensure_future(self.do_async_start(host, port))
+        self.start_task = asyncio.ensure_future(self.do_async_start(host, port))
 
     async def do_async_start(self, host, port):
         try:
@@ -142,13 +143,18 @@ class App(tk.Frame):
                 on_error=self.on_error,
             )
             await self.link_handle.poll_qtm_state()
-        except link.LinkError as err:
-            self.lbl_status["text"] = "Start failed"
+        except asyncio.CancelledError:
             self.enable_input(True)
+            self.lbl_status["text"] = "Start canceled"
+            self.link_handle = None
+            LOG.error("Start attempt canceled")
+        except link.LinkError as err:
+            self.enable_input(True)
+            self.lbl_status["text"] = "Start failed"
             self.link_handle = None
             self.on_error(err)
         finally:
-            self.waiting_for_link = False
+            self.start_task = None
 
     def format_packet_count(self, count):
         mil = 1000000
@@ -193,6 +199,7 @@ class App(tk.Frame):
     
     async def stop_async_loop(self):
         self.async_loop.stop()
+        self.master.destroy()
         LOG.debug("gui: stop_async_loop")
     
     def run_async_loop(self):
@@ -204,7 +211,6 @@ class App(tk.Frame):
         for task in tasks:
             task.cancel()
         asyncio.ensure_future(self.stop_async_loop())
-        self.master.destroy()
 
 def main():
     root = tk.Tk()
