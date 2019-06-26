@@ -65,12 +65,23 @@ class Link:
             self._on_error(msg)
     
     def on_event(self, event):
-        # TODO: Check for events from live capture stream
+        start_events = [
+            QRTEvent.EventRTfromFileStarted,
+            QRTEvent.EventCalibrationStarted,
+            QRTEvent.EventCaptureStarted,
+            QRTEvent.EventConnected,
+        ]
+        stop_events = [
+            QRTEvent.EventRTfromFileStopped,
+            QRTEvent.EventCalibrationStopped,
+            QRTEvent.EventCaptureStopped,
+            QRTEvent.EventConnectionClosed,
+        ]
         if self.state == State.WAITING:
-            if event in [QRTEvent.EventRTfromFileStarted]:
+            if event in start_events:
                 asyncio.ensure_future(self.start_stream())
         elif self.state == State.STREAMING:
-            if event in [QRTEvent.EventRTfromFileStopped]:
+            if event in stop_events:
                 asyncio.ensure_future(self.stop_stream())
         
     def on_disconnect(self, exc):
