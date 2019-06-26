@@ -76,9 +76,11 @@ class Link:
     def on_disconnect(self, exc):
         if self.is_stopped(): return
         if self.conn:
-            self.err_disconnect("Disconnected from QTM")
+            msg = "Disconnected from QTM"
+            LOG.error(msg)
+            self.err_disconnect(msg)
         if exc:
-            LOG.debug("link::on_disconnect: {}".format(exc))
+            LOG.debug("link: on_disconnect: {}".format(exc))
 
     def open_lsl_stream_outlet(self):
         self.lsl_info = new_lsl_stream_info(self.config, self.host, self.port)
@@ -89,7 +91,7 @@ class Link:
 
     async def shutdown(self, err_msg=None):
         try:
-            LOG.debug("shutdown enter")
+            LOG.debug("link: shutdown enter")
             if not self.is_stopped():
                 if self.state == State.STREAMING:
                     await self.stop_stream()
@@ -100,13 +102,13 @@ class Link:
             self.set_state(State.STOPPED)
             if err_msg:
                 self.on_error(err_msg)
-            LOG.debug("shutdown exit")
+            LOG.debug("link: shutdown exit")
 
     async def poll_qtm_state(self):
         try:
             await self.conn.get_state()
         except qtm.QRTCommandException as ex:
-            LOG.debug("get_state exception: {}".format(ex))
+            LOG.error("QTM: get_state exception: {}".format(ex))
             self.err_disconnect("QTM error: {}".format(ex))
 
     async def stop_stream(self):
@@ -114,7 +116,7 @@ class Link:
             try:
                 await self.conn.stream_frames_stop()
             except qtm.QRTCommandException as ex:
-                LOG.debug("stream_frames_stop exception: {}".format(ex))
+                LOG.error("QTM: stream_frames_stop exception: {}".format(ex))
         if self.receiver_queue:
             self.receiver_queue.put_nowait(None)
             await self.receiver_task
@@ -129,10 +131,10 @@ class Link:
             )
             config = parse_qtm_parameters(packet.decode("utf-8"))
             if config.marker_count() == 0 or config.body_count() == 0:
+                msg = "Missing QTM data: markers {} rigid bodies {}" \
+                    .format(config.marker_count(), config.body_count())
+                LOG.info(msg)
                 self.err_disconnect("No 3D or 6DOF data available from QTM")
-                LOG.debug("marker_count {} body_count {}".format(
-                    config.marker_count(), config.body_count()
-                ))
                 return
             self.config = config
             self.receiver_queue = asyncio.Queue()
@@ -144,29 +146,33 @@ class Link:
             )
             self.set_state(State.STREAMING)
         except qtm.QRTCommandException as ex:
-            LOG.debug("stream_frames exception: {}".format(ex))
+            LOG.error("QTM: stream_frames exception: {}".format(ex))
             self.err_disconnect("QTM error: {}".format(ex))
         except Exception as ex:
-            LOG.debug("link::start_stream exception: {}".format(ex))
+            LOG.error("link: start_stream exception: {}".format(ex))
             self.err_disconnect("Internal error: {}".format(ex))
             raise ex
 
     async def stream_receiver(self):
         try:
-            LOG.debug("link::stream_receiver enter")
+            LOG.debug("link: stream_receiver enter")
             while True:
                 packet = await self.receiver_queue.get()
                 if packet is None:
                     break
                 sample = qtm_packet_to_lsl_sample(packet)
                 if len(sample) != self.config.channel_count():
-                    self.err_disconnect("Stream canceled: \
-                        QTM stream data inconsistent with LSL metadata")
+                    msg = ("Stream canceled: "
+                        "sample length {} != channel count {}") \
+                        .format(len(sample), self.config.channel_count())
+                    LOG.error(msg)
+                    self.err_disconnect(("Stream canceled: "
+                        "QTM stream data inconsistent with LSL metadata"))
                 else:
                     self.packet_count += 1
                     self.lsl_outlet.push_sample(sample)
         finally:
-            LOG.debug("link::stream_receiver exit")
+            LOG.debug("link: stream_receiver exit")
 
 class LinkError(Exception):
     pass
@@ -179,7 +185,7 @@ async def init(
     on_error=None
 ):
     try:
-        LOG.debug("link::init enter")
+        LOG.debug("link: init enter")
         link = Link(qtm_host, qtm_port, on_state_changed, on_error)
         link.conn = await qtm.connect(
             host=qtm_host,
@@ -189,15 +195,17 @@ async def init(
             on_disconnect=link.on_disconnect,
         )
         if link.conn is None:
-            msg = "Failed to connect to QTM on '{}:{}' with protocol version '{}'" \
+            msg = ("Failed to connect to QTM "
+                "on '{}:{}' with protocol version '{}'") \
                 .format(qtm_host, qtm_port, qtm_version)
+            LOG.error(msg)
             raise LinkError(msg)
         link.set_state(State.WAITING)
     except LinkError:
         raise
     except Exception as ex:
-        LOG.debug("link::init exception: {}".format(ex))
+        LOG.error("link: init exception: {}".format(ex))
         raise LinkError("Internal error: {}".format(ex))
     finally:
-        LOG.debug("link::init exit")
+        LOG.debug("link: init exit")
     return link

@@ -2,6 +2,7 @@
     Simple Tkinter GUI for Qualisys LSL.
 """
 
+import argparse
 import asyncio
 import logging
 import time
@@ -11,7 +12,6 @@ from tkinter import messagebox
 import qlsl.link as link
 
 LOG = logging.getLogger("qlsl")
-LOG.setLevel(logging.DEBUG)
 
 class App(tk.Frame):
     def __init__(self, master, async_loop):
@@ -144,8 +144,8 @@ class App(tk.Frame):
             self.waiting_for_link = False
 
     async def updater(self, interval=1/20):
-        LOG.debug("gui::updater enter")
         try:
+            LOG.debug("gui: updater enter")
             while True:
                 if self.link_handle:
                     elapsed_time = time.time() - self.start_time
@@ -158,11 +158,11 @@ class App(tk.Frame):
                 self.update()
                 await asyncio.sleep(interval)
         finally:
-            LOG.debug("gui::updater exit")
+            LOG.debug("gui: updater exit")
     
     async def stop_async_loop(self):
         self.async_loop.stop()
-        LOG.debug("gui::stop_async_loop")
+        LOG.debug("gui: stop_async_loop")
     
     def run_async_loop(self):
         asyncio.ensure_future(self.updater())
@@ -183,4 +183,17 @@ def main():
     loop.close()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Qualisys LSL App.")
+    parser.add_argument(
+        "-v", "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="log debug messages"
+    )
+    args = parser.parse_args()
+    if args.verbose:
+        LOG.setLevel(logging.DEBUG)
+    else:
+        LOG.setLevel(logging.INFO)
     main()
