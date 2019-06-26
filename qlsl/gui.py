@@ -143,6 +143,23 @@ class App(tk.Frame):
         finally:
             self.waiting_for_link = False
 
+    def format_packet_count(self):
+        count = self.link_handle.packet_count
+        mil = 1000000
+        if count > mil:
+            m = int(count/mil)
+            rem = count%mil
+            ten_k = int(rem/10000)
+            fmt = "{}.{:02d} m".format(m, ten_k)
+        elif count > 1000:
+            k = int(count/1000)
+            rem = count%1000
+            ten = int(rem/10)
+            fmt = "{}.{:02d} k".format(k, ten)
+        else:
+            fmt = str(count)
+        return fmt
+
     async def updater(self, interval=1/20):
         try:
             LOG.debug("gui: updater enter")
@@ -153,8 +170,8 @@ class App(tk.Frame):
                         time.strftime('%H:%M:%S', time.gmtime(elapsed_time))
                     )
                     self.lbl_packets["text"] = "Packet count: {}".format(
-                        self.link_handle.packet_count,
-                    )
+                        self.format_packet_count()
+                    ) 
                 self.update()
                 await asyncio.sleep(interval)
         finally:

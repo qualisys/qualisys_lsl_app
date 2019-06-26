@@ -130,7 +130,7 @@ class Link:
                 parameters=["general", "3d", "6d"],
             )
             config = parse_qtm_parameters(packet.decode("utf-8"))
-            if config.marker_count() == 0 or config.body_count() == 0:
+            if config.channel_count() == 0:
                 msg = "Missing QTM data: markers {} rigid bodies {}" \
                     .format(config.marker_count(), config.body_count())
                 LOG.info(msg)
