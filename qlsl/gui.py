@@ -33,7 +33,7 @@ class App(tk.Frame):
             icon_path = os.path.join("images", "qtm.ico")
             self.master.iconbitmap(icon_path)
         except Exception as ex:
-            LOG.debug("Failed to set window icon: {}".format(ex))
+            LOG.debug("Failed to set window icon: " + repr(ex))
     
     def set_geometry(self):
         ws = self.master.winfo_screenwidth()
@@ -133,6 +133,7 @@ class App(tk.Frame):
 
     async def do_async_start(self, host, port):
         try:
+            err_msg = None
             self.lbl_status["text"] = "Connecting to QTM"
             self.enable_input(False)
             self.link_handle = await link.init(
@@ -142,18 +143,24 @@ class App(tk.Frame):
                 on_state_changed=self.on_state_changed,
                 on_error=self.on_error,
             )
-            await self.link_handle.poll_qtm_state()
         except asyncio.CancelledError:
-            self.enable_input(True)
-            self.lbl_status["text"] = "Start canceled"
             self.link_handle = None
             LOG.error("Start attempt canceled")
         except link.LinkError as err:
-            self.enable_input(True)
-            self.lbl_status["text"] = "Start failed"
             self.link_handle = None
-            self.on_error(err)
+            err_msg = str(err)
+        except Exception as ex:
+            self.link_handle = None
+            LOG.error("gui: do_async_start exception: " + repr(ex))
+            err_msg = ("An internal error occurred. "
+                "See log messages for details.")
+            raise
         finally:
+            if not self.link_handle:
+                self.enable_input(True)
+                self.lbl_status["text"] = "Start failed"
+                if err_msg:
+                    self.on_error(err_msg)
             self.start_task = None
 
     def format_packet_count(self, count):
@@ -162,12 +169,12 @@ class App(tk.Frame):
             m = int(count/mil)
             rem = count%mil
             ten_k = int(rem/10000)
-            fmt = "{}.{:02d} m".format(m, ten_k)
+            fmt = "{}.{:02d}m".format(m, ten_k)
         elif count > 1000:
             k = int(count/1000)
             rem = count%1000
             ten = int(rem/10)
-            fmt = "{}.{:02d} k".format(k, ten)
+            fmt = "{}.{:02d}k".format(k, ten)
         else:
             fmt = str(count)
         return fmt

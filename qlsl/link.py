@@ -121,11 +121,10 @@ class Link:
     async def shutdown(self, err_msg=None):
         try:
             LOG.debug("link: shutdown enter")
-            if not self.is_stopped():
-                if self.state == State.STREAMING:
-                    await self.stop_stream()
-                if self.conn and self.conn.has_transport():
-                    self.conn.disconnect()
+            if self.state == State.STREAMING:
+                await self.stop_stream()
+            if self.conn and self.conn.has_transport():
+                self.conn.disconnect()
             self.conn = None
         finally:
             self.set_state(State.STOPPED)
@@ -133,19 +132,12 @@ class Link:
                 self.on_error(err_msg)
             LOG.debug("link: shutdown exit")
 
-    async def poll_qtm_state(self):
-        try:
-            await self.conn.get_state()
-        except qtm.QRTCommandException as ex:
-            LOG.error("QTM: get_state exception: {}".format(ex))
-            self.err_disconnect("QTM error: {}".format(ex))
-
     async def stop_stream(self):
         if self.conn and self.conn.has_transport():
             try:
                 await self.conn.stream_frames_stop()
             except qtm.QRTCommandException as ex:
-                LOG.error("QTM: stream_frames_stop exception: {}".format(ex))
+                LOG.error("QTM: stream_frames_stop exception: " + str(ex))
         if self.receiver_queue:
             self.receiver_queue.put_nowait(None)
             await self.receiver_task
@@ -183,10 +175,10 @@ class Link:
         except asyncio.CancelledError:
             raise
         except qtm.QRTCommandException as ex:
-            LOG.error("QTM: stream_frames exception: {}".format(ex))
+            LOG.error("QTM: stream_frames exception: " + str(ex))
             self.err_disconnect("QTM error: {}".format(ex))
         except Exception as ex:
-            LOG.error("link: start_stream exception: {}".format(ex))
+            LOG.error("link: start_stream exception: " + repr(ex))
             self.err_disconnect("An internal error occurred. See log messages for details.")
             raise ex
 
@@ -211,7 +203,7 @@ class Link:
         except asyncio.CancelledError:
             raise
         except Exception as ex:
-            LOG.error("link: stream_receiver exception: {}".format(ex))
+            LOG.error("link: stream_receiver exception: " + repr(ex))
             self.err_disconnect("An internal error occurred. See log messages for details.")
             raise
         finally:
@@ -227,9 +219,9 @@ async def init(
     on_state_changed=None,
     on_error=None
 ):
+    LOG.debug("link: init enter")
+    link = Link(qtm_host, qtm_port, on_state_changed, on_error)
     try:
-        LOG.debug("link: init enter")
-        link = Link(qtm_host, qtm_port, on_state_changed, on_error)
         link.conn = await qtm.connect(
             host=qtm_host,
             port=qtm_port,
@@ -243,14 +235,15 @@ async def init(
                 .format(qtm_host, qtm_port, qtm_version)
             LOG.error(msg)
             raise LinkError(msg)
-        link.set_state(State.WAITING)
-    except asyncio.CancelledError:
+        try:
+            link.set_state(State.WAITING)
+            await link.conn.get_state()
+        except qtm.QRTCommandException as ex:
+            LOG.error("QTM: get_state exception: " + str(ex))
+            raise LinkError("QTM error: {}".format(ex))
+    except:
+        await link.shutdown()
         raise
-    except LinkError:
-        raise
-    except Exception as ex:
-        LOG.error("link: init exception: {}".format(ex))
-        raise LinkError("An internal error occurred. See log messages for details.")
     finally:
         LOG.debug("link: init exit")
     return link
