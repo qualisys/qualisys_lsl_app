@@ -143,6 +143,7 @@ class Link:
             await self.receiver_task
         self.reset_stream_context()
         if self.state == State.STREAMING:
+            LOG.info("Stream stopped")
             self.stop_time = time.time()
             self.set_state(State.WAITING)
     
