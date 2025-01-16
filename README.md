@@ -23,14 +23,6 @@ If this is unsuccessful, consult the links in the dependencies section for instr
 ```
 python -m pip install -r requirements-dev.txt
 ```
-> [!NOTE]
-> The installation requires that git is installed on the computer and on the system path.
-> 
-> Alternatively, you can edit the requirements.txt file, so that it reads:
-> ```
-> pylsl==1.13.6
-> qtm==2.1.1
-> ```
 
 ## Usage
 1. Ensure QTM is running either locally or on an external host that you are able to ping
