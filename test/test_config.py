@@ -7,7 +7,7 @@ import os
 import re
 
 import pytest
-from qtm.packet import QRTComponentType
+from qtm_rt.packet import QRTComponentType
 
 from qlsl.config import (
     Config,
