@@ -6,7 +6,7 @@ import logging
 import xml.etree.ElementTree as ET
 
 from pylsl import cf_float32, StreamInfo
-from qtm.packet import QRTComponentType
+from qtm_rt.packet import QRTComponentType
 
 LOG = logging.getLogger("qlsl")
 LOG.setLevel(logging.DEBUG)

@@ -8,8 +8,8 @@ import logging
 import time
 
 from pylsl import StreamInfo, StreamOutlet
-import qtm
-from qtm import QRTEvent
+import qtm_rt as qtm
+from qtm_rt import QRTEvent
 
 from qlsl.config import (
     Config,
