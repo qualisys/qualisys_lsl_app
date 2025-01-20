@@ -1,2 +1,3 @@
-pylsl==1.13.6
-git+https://github.com/qualisys/qualisys_python_sdk.git@v2.1.1#egg=qtm
+pylsl==1.17.6
+qtm-rt == 3.0.2
+
